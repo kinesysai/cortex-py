@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='cortex-python',
+    name='cortex-py',
     version='1.0.0',
     description='A short description of your package',
     packages=find_packages(),
@@ -13,7 +13,7 @@ setup(
         'Programming Language :: Python :: 3',
         'Operating System :: OS Independent',
     ],
-    url='https://github.com/kinesysai/cortex-python',
+    url='https://github.com/kinesysai/cortex-py',
     author='Charles Pun',
     author_email='charlespun6@gmail.com',
 )
