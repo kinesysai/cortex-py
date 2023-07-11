@@ -1,3 +1,4 @@
+import json
 from enum import Enum
 import requests
 from typing import List, Dict, Union, Any, Tuple
@@ -263,6 +264,22 @@ class CreateDocument:
         self.tags = tags
         self.text = text
         self.source_url = source_url
+    def getJson(self):
+        data = {}
+        if self.timestamp is not None:
+            data["timestamp"] = self.timestamp
+
+        if self.tags is not None:
+            data["tags"] = self.tags
+
+        if self.text is not None:
+            data["text"] = self.text
+
+        if self.source_url is not None:
+            data["source_url"] = self.source_url
+        
+        return json.dumps(data)
+
 
 class SharedVisibility:
     PRIVATE = "private"
@@ -313,7 +330,7 @@ class CortexAPI:
         res = requests.request(**config, url=endpoint)
         return res.json().get('pID')
 
-    def getDocument(self, knowledgeName: str, documentID: str) -> Dict[str, Document]:
+    def getDocument(self, knowledgeName: str, documentID: str):
         if not self.userId:
             self.userId = self.getIDFromKey()
         config = {
@@ -327,22 +344,23 @@ class CortexAPI:
         response = requests.request(**config, url=self.basePath + endpoint)
         return response.json()
 
-    def uploadDocument(self, knowledgeName: str, documentID: str, document: Dict[str, Union[str, None]]) -> Dict[str, Union[Document, Knowledge]]:
+    def uploadDocument(self, knowledgeName: str, documentID: str, document: CreateDocument):
         if not self.userId:
             self.userId = self.getIDFromKey()
+        data = document.getJson()
         config = {
             'headers': {
                 'Authorization': f'Bearer {self.apiKey}',
                 'Content-Type': 'application/json'
             },
             'method': 'POST',
-            'data': document,
+            'data': data,
         }
         endpoint = f'/{self.userId}/knowledge/{knowledgeName}/d/{documentID}'
         response = requests.request(**config, url=self.basePath + endpoint)
         return response.json()
 
-    def deleteDocument(self, knowledgeName: str, documentID: str) -> Dict[str, Document]:
+    def deleteDocument(self, knowledgeName: str, documentID: str):
         if not self.userId:
             self.userId = self.getIDFromKey()
         config = {

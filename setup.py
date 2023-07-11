@@ -1,12 +1,13 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='cortex-py',
-    version='1.0.0',
+    name='trycortex-py',
+    version='1.0.1',
     description='A short description of your package',
     packages=find_packages(),
     install_requires=[
         'requests',
+        'json',
     ],
     classifiers=[
         'License :: OSI Approved :: MIT License',
