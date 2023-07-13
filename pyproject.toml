@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "trycortex"
-version = "1.0.3"
+version = "1.0.5"
 description = "Python library for Cortex"
 authors = ["Charles <charlespun6@gmail.com>"]
 readme = "README.md"
@@ -11,7 +11,7 @@ click = "^8.1.5"
 
 # Install the "cortex" commandline script.
 [tool.poetry.scripts]
-cortex = "cortex.cli.cli:cortex"
+cortex = "trycortex.cli.cli:cortex"
 
 [build-system]
 requires = ["poetry-core"]
