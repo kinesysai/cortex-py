@@ -1,3 +1,6 @@
+import trycortex.callables.base as base
+import blocks.INPUT.input as input
+import blocks.OUTPUT.output as output
 """A templated cortex callable!
 
 Cortex docs:
@@ -7,6 +10,8 @@ Cortex callable example:
     https://github.com/kinesysai/cortex-py/template.py
 """
 
-import trycortex
 
-callable = trycortex.addBlocks()
+callable = base.Callable([
+    input.block,
+    output.block,
+])

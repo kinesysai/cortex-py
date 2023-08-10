@@ -12,6 +12,7 @@ class CallableConfig(utils.DataClassYamlMixin):
     visibility: str = "private"
     template: str = "barbone"
     entry_point: str = "main:callable"
+    sID: str = ""
 
 def normalize_path(path: Optional[str] = None) -> str:
     """Normalizes paths to an CallableConfig.
