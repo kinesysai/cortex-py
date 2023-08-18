@@ -17,6 +17,8 @@ from trycortex.callables.base import Callable
 import json
 import sys
 import requests
+import time
+import itertools
 
 from trycortex.cli.callable import callable_config
 from trycortex.api import *
@@ -85,28 +87,153 @@ _fun = (env) => {
         
         script_content = """\
 from trycortex.callables import blocks
-with open('code.js', 'r') as file:
+import os
+path = os.path.dirname(os.path.abspath(__file__))
+code_path = os.path.join(path, "code.js")
+with open(code_path, 'r') as file:
     js_code = file.read()
 spec = blocks.CodeSpec(code=js_code)
-block = blocks.Block(type=\"""" + type +  """",name=\"""" + name + """", indent=0, spec=spec)
+block = blocks.Block(type=\"""" + type +  """",name=\"""" + name + """", indent=0, spec=spec, config={})
 """
         script_name = name.lower() + ".py"
         script_path = os.path.join(block_path, script_name)
         with open(script_path, "w") as file:
             file.write(script_content)
 
-        main_path = os.path.join(path, "main.py")
-        with open(main_path, 'r') as file:
-            main_content = file.read()
-        import_statement = f"import blocks.{name.upper()}.{name.lower()} as {name.lower()}\n"
-        updated_import = import_statement + main_content
-        with open(main_path, 'w') as file:
-            file.write(updated_import)
-
     # check what type of block it is
     # create block according to type and name and initialize it
     # create new folder in blocks folder for the new block
     # add a python file initializing the new block
+    elif type.lower() == "model":
+        script_content = """\
+from trycortex.callables import blocks
+
+spec = blocks.ModelSpec(temperature=0.7, max_tokens=1024, few_shot_count=3, few_shot_prompt="", few_shot_preprompt="", prompt="", stop=[])
+config = blocks.ModelConfig(provider_id="openai", model_id="gpt-3.5-turbo", use_cache=True, use_semantic_cache=False)
+
+block = blocks.Block(type=\"""" + type + """", name=\""""+ name +  """", indent=0, spec=spec, config=config)
+"""
+        script_name = name.lower() + ".py"
+        script_path = os.path.join(block_path, script_name)
+        with open(script_path, "w") as file:
+            file.write(script_content)
+    elif type.lower() == "search":
+        script_content = """\
+from trycortex.callables import blocks
+
+spec = blocks.SearchSpec(query="", num=3)
+config = blocks.SearchConfig(provider_id="serpapi", use_cache=True)
+
+block = blocks.Block(type="search", name=\"""" + name + """", indent=0, spec=spec, config=config)
+"""
+        script_name = name.lower() + ".py"
+        script_path = os.path.join(block_path, script_name)
+        with open(script_path, "w") as file:
+            file.write(script_content)
+    elif type.lower() == "map":
+        map_content = """\
+from trycortex.callables import blocks
+
+spec = blocks.MapSpec(from_="INPUT", repeat="")
+block = blocks.Block(type="map", name=\"""" + name + """", indent=0, spec=spec, config={})
+"""
+        script_name = name.lower() + ".py"
+        script_path = os.path.join(block_path, script_name)
+        with open(script_path, "w") as file:
+            file.write(map_content)
+        reduce_content = """\
+from trycortex.callables import blocks
+
+block = blocks.Block(type="reduce", name=\"""" + name + """", indent=0, spec={}, config={})
+"""
+        reduce_name = "reduce.py"
+        reduce_path = os.path.join(block_path, reduce_name)
+        with open(reduce_path, "w") as file:
+            file.write(reduce_content)
+    elif type.lower() == "knowledge":
+        script_content = """\
+from trycortex.callables import blocks
+
+spec = blocks.KnowledgeSpec(query="", full_text=False)
+config = blocks.KnowledgeConfig(knowledge=None, top_k=8, filter={"tags": None, "timestamp": None}, use_cache=False)
+block = blocks.Block(type="knowledge", name=\"""" + name + """", indent=0, spec=spec, config=config)
+"""
+        script_name = name.lower() + ".py"
+        script_path = os.path.join(block_path, script_name)
+        with open(script_path, "w") as file:
+            file.write(script_content)
+    elif type.lower() == "data":
+        data_content = """\
+    from trycortex.callables import blocks
+
+    spec = dict()
+    config = dict()
+    block = blocks.Block(type="data", name=\"""" + name + """", indent=0, spec=spec, config=config)
+    """
+        script_name = name.lower() + ".py"
+        script_path = os.path.join(block_path, script_name)
+        with open(script_path, "w") as file:
+            file.write(data_content)
+    elif type.lower() == "browser":
+        script_content = """\
+from trycortex.callables import blocks
+
+spec = blocks.BrowserSpec(url="", selector="body", timeout=16000, wait_until="networkidle2")
+config = blocks.BrowserConfig(provider_id="", use_cache=True, error_as_output=True)
+block = blocks.Block(type="browser", name=\"""" + name + """", indent=0, spec=spec, config=config)
+"""
+        script_name = name.lower() + ".py"
+        script_path = os.path.join(block_path, script_name)
+        with open(script_path, "w") as file:
+            file.write(script_content)
+    elif type.lower() == "curl":
+        default_headers_code = '''_fun = (env) => {
+  return {"Content-Type": "application/json"};
+}
+'''
+        headers_code_path = os.path.join(block_path, "headers_code.js")
+        with open(headers_code_path, "w") as file:
+            file.write(default_headers_code)
+        
+        default_body_code = '''_fun = (env) => {
+  // return a string or null to skip sending a body.
+  return JSON.stringify({ foo: "bar" });
+}
+'''
+        body_code_path = os.path.join(block_path, "body_code.js")
+        with open(body_code_path, "w") as file:
+            file.write(default_body_code)
+        
+        script_content = """from trycortex.callables import blocks
+import os
+path = os.path.dirname(os.path.abspath(__file__))
+
+headers_code_path = os.path.join(path, "headers_code.js")
+with open(headers_code_path, 'r') as file:
+    headers_js_code = file.read()
+
+body_code_path = os.path.join(path, "body_code.js")
+with open(body_code_path, 'r') as file:
+    body_js_code = file.read()
+
+spec = blocks.CurlSpec(scheme="HTTPS", method="POST", url="", headers_code=headers_js_code, body_code=body_js_code)
+config = blocks.CurlConfig(use_cache=True)
+
+block = blocks.Block(type="curl", name=\"""" + name + """", indent=0, spec=spec, config=config)
+"""
+        script_name = name.lower() + ".py"
+        script_path = os.path.join(block_path, script_name)
+        with open(script_path, "w") as file:
+            file.write(script_content)
+
+    main_path = os.path.join(path, "main.py")
+    with open(main_path, 'r') as file:
+        main_content = file.read()
+    import_statement = f"import blocks.{name.upper()}.{name.lower()} as {name.lower()}\n"
+    updated_import = import_statement + main_content
+    with open(main_path, 'w') as file:
+        file.write(updated_import)
+
 
 
 
@@ -207,24 +334,27 @@ def init_callable(ctx, path, name, description, visibility, template, entry_poin
 
     blocks_path = os.path.join(path, "blocks")
     os.makedirs(blocks_path, exist_ok=True)
+
     output = os.path.join(blocks_path, "OUTPUT")
+    os.makedirs(output, exist_ok=True)
     output_path = os.path.join(output, "output.py")
     output_content = """\
 from trycortex.callables import blocks
 
-block = blocks.OutputBlock(spec={\})
+block = blocks.OutputBlock(spec={})
 """
     with open(output_path, "w") as file:
         file.write(output_content)
 
     input = os.path.join(blocks_path, "INPUT")
+    os.makedirs(input, exist_ok=True)
     input_path = os.path.join(input, "input.py")
     input_content = """\
 from trycortex.callables import blocks
 
 config = blocks.InputConfig(dataset="QADataset")
 
-block = blocks.Block(type="input", name="INPUT", indent=0, spec={\}, config=config)
+block = blocks.Block(type="input", name="INPUT", indent=0, spec={}, config=config)
 """
     with open(input_path, "w") as file:
         file.write(input_content)
@@ -246,17 +376,343 @@ def _validate_callable_path(ctx, param, value):
 
     return normalized
 
-@callable.command("update", help="Deploy the current agent.")
+@callable.command("deploy", help="Deploy the current callable.")
 @click.argument("path", callback=_validate_callable_path, required=False)
 @click.pass_context
-def update(ctx, path):
+def deploy(ctx, path):
+    click.echo("Deploying callable...", nl=True)
+    path = pathlib.Path(path or ".")
+    config = callable_config.load_config(path)
+    url = "http://127.0.0.1:3000/api/sdk/callable/deploy"
+
+    sId = config.sID
+
+    payload = json.dumps({
+    "sId": sId
+    })
+
+    apikey = ctx.obj.api_key
+
+    headers = {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer ' + apikey
+    }
+
+    response = requests.request("POST", url, headers=headers, data=payload)
+    click.secho("Callable has been successfully deployed!", fg='green')
+
+
+@callable.command("runtests", help="Runs tests for the current callable.")
+@click.argument("path", callback=_validate_callable_path, required=False)
+@click.pass_context
+def runtests(ctx, path):
     console = rich_console.Console(soft_wrap=True)
+    click.echo("Running...\n")
+    path = pathlib.Path(path or ".")
     config = callable_config.load_config(path)
     callable_dir = os.path.dirname(path) or "."
     sys.path.insert(0, callable_dir)
     entry_point_parts = config.entry_point.split(":", 1)
     module_name = entry_point_parts[0]
-    attr = entry_point_parts[1] if len(entry_point_parts) == 2 else "agent"
+    attr = entry_point_parts[1] if len(entry_point_parts) == 2 else "callable"
+    module = importlib.import_module(module_name)
+    impl = getattr(module, attr)
+    if isinstance (impl, Callable):
+        callable_impl = impl
+    else:
+        console.print("configured entry point is not a callable")
+        pass
+    callable_blocks = callable_impl.get_blocks()
+    block_json = [asdict(block) for block in callable_blocks]
+    saveSpec = json.dumps(block_json)
+    url = "http://127.0.0.1:3000/api/sdk/callable/update"
+
+    sId = config.sID
+
+    apikey = ctx.obj.api_key
+
+    update_payload = json.dumps({
+        "sId": sId,
+        "specification": saveSpec
+    })
+
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + apikey
+    }
+    update_response = requests.request("POST", url, headers=headers, data=update_payload)
+
+    runtests_url = "http://127.0.0.1:3000/api/sdk/callable/runtests"
+
+    runtests_payload = json.dumps({
+    "sId": sId,
+    "mode": "design"
+    })
+
+    runtests_response = requests.request("POST", runtests_url, headers=headers, data=runtests_payload)
+    runId = runtests_response.json()["run"]["run_id"]
+    block_url = "http://127.0.0.1:3000/api/sdk/callable/runblock"
+
+
+    for block in block_json:
+        block_payload = {
+            "sId": sId,
+            "runId": runId,
+            "type": block['type'],
+            "name": block['name'],
+        }
+        block_response = requests.request("POST", block_url, headers=headers, data=json.dumps(block_payload))
+
+        running = block_response.json()["run"]["status"]["run"]
+        spinner = itertools.cycle(['-', '/', '|', '\\'])
+        click.echo('\033[?25l', nl=False)
+        while running == "running":
+            click.echo(next(spinner), nl=False)
+            click.echo('\b', nl=False)
+            time.sleep(0.1)
+            block_response = requests.request("POST", block_url, headers=headers, data=json.dumps(block_payload))
+            running = block_response.json()["run"]["status"]["run"]
+        click.echo('\033[?25h', nl=False)
+
+        name = block['name']
+        block_type = block['type']
+        values = block_response.json()["run"]["traces"]
+        click.echo(click.style(f"{block_type} {name}:", bold=True, fg='green'))
+        for value_group in values:
+            for value_values in value_group[1]:
+                value_data = value_values[0]
+                val = value_data.get('input', '') if 'input' in value_data else value_data.get('value', {})
+                duration = value_data.get('meta', {}).get('duration', '')
+                error = value_data.get('error')
+                if error:
+                    click.echo(f"    - {val} (Error: {error})")
+                else:
+                    click.echo(f"    - {val} (Duration: {duration}s)")
+                    
+
+    
+
+@callable.command("fetch", help="Fetch the current callable.")
+@click.argument("path", callback=_validate_callable_path, required=False)
+@click.pass_context
+def fetch(ctx, path):
+    path = pathlib.Path(path or ".")
+    config = callable_config.load_config(path)
+    url = "http://127.0.0.1:3000/api/sdk/callable/spec"
+    sId = config.sID
+    apikey = ctx.obj.api_key
+    payload = json.dumps({
+    "sId": sId
+    })
+    headers = {
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer ' + apikey
+    }
+    response = requests.request("POST", url, headers=headers, data=payload)
+    app = response.json()['app']
+    config.name = app['name']
+    config.description = app['description']
+    config.visibility = app['visibility']
+    callable_config.save_config(config, path)
+    spec = app['savedSpecification']
+    spec_json = json.loads(spec)
+    blocks_path = os.path.join(os.path.dirname(path), "blocks")
+    os.makedirs(blocks_path, exist_ok=True)
+    for block in spec_json:
+        block_path = os.path.join(blocks_path, block['name'].upper())
+        os.makedirs(block_path, exist_ok=True)
+        if block['type'] == 'code':
+            code_path = os.path.join(block_path, "code.js")
+            with open(code_path, "w") as file:
+                file.write(block['spec']['code'])
+            script_content = """\
+from trycortex.callables import blocks
+import os
+path = os.path.dirname(os.path.abspath(__file__))
+code_path = os.path.join(path, "code.js")
+with open(code_path, 'r') as file:
+    js_code = file.read()
+spec = blocks.CodeSpec(code=js_code)
+block = blocks.Block(type=\"""" + block['type'] +  """",name=\"""" + block['name'] + """", indent=0, spec=spec, config={})
+"""
+            script_name = block['name'].lower() + ".py"
+            script_path = os.path.join(block_path, script_name)
+            with open(script_path, "w") as file:
+                file.write(script_content)
+        elif block['type'] == 'knowledge':
+            knowledge_path = os.path.join(block_path, "knowledge.txt")
+            with open(knowledge_path, "w") as file:
+                file.write(block['spec']['query'])
+            script_content = """\
+from trycortex.callables import blocks
+import os
+path = os.path.dirname(os.path.abspath(__file__))
+knowledge_path = os.path.join(path, "knowledge.txt")
+with open(knowledge_path, 'r') as file:
+    query = file.read()
+spec = blocks.KnowledgeSpec(query=query, full_text=False)
+config = blocks.KnowledgeConfig(knowledge=[], top_k=8, filter={}, use_cache=False)
+block = blocks.Block(type=\"""" + block['type'] +  """",name=\"""" + block['name'] + """", indent=0, spec=spec, config=config)
+"""
+            script_name = block['name'].lower() + ".py"
+            script_path = os.path.join(block_path, script_name)
+            with open(script_path, "w") as file:
+                file.write(script_content)
+        elif block['type'] == 'model':
+            model_path = os.path.join(block_path, "model.txt")
+            with open(model_path, "w") as file:
+                file.write(block['spec']['prompt'])
+            script_content = """\
+from trycortex.callables import blocks
+import os
+path = os.path.dirname(os.path.abspath(__file__))
+model_path = os.path.join(path, "model.txt")
+with open(model_path, 'r') as file:
+    prompt = file.read()
+spec = blocks.ModelSpec(temperature=0.7, max_tokens=1024, few_shot_count=3, few_shot_prompt="", few_shot_preprompt="", prompt=prompt, stop=[])
+config = blocks.ModelConfig(provider_id="openai", model_id="gpt-3.5-turbo", use_cache=True, use_semantic_cache=False)
+block = blocks.Block(type=\"""" + block['type'] +  """",name=\"""" + block['name'] + """", indent=0, spec=spec, config=config)
+"""
+            script_name = block['name'].lower() + ".py"
+            script_path = os.path.join(block_path, script_name)
+            with open(script_path, "w") as file:
+                file.write(script_content)
+        elif block['type'] == 'search':
+            search_path = os.path.join(block_path, "search.txt")
+            with open(search_path, "w") as file:
+                file.write(block['spec']['query'])
+            script_content = """\
+from trycortex.callables import blocks
+import os
+path = os.path.dirname(os.path.abspath(__file__))
+search_path = os.path.join(path, "search.txt")
+with open(search_path, 'r') as file:
+    query = file.read()
+spec = blocks.SearchSpec(query=query, num=3)
+config = blocks.SearchConfig(provider_id="serpapi", use_cache=True)
+block = blocks.Block(type=\"""" + block['type'] +  """",name=\"""" + block['name'] + """", indent=0, spec=spec, config=config)
+"""
+            script_name = block['name'].lower() + ".py"
+            script_path = os.path.join(block_path, script_name)
+            with open(script_path, "w") as file:
+                file.write(script_content)
+        elif block['type'] == 'map':
+            map_path = os.path.join(block_path, "map.txt")
+            with open(map_path, "w") as file:
+                file.write(block['spec']['repeat'])
+            script_content = """\
+from trycortex.callables import blocks
+import os
+path = os.path.dirname(os.path.abspath(__file__))
+map_path = os.path.join(path, "map.txt")
+with open(map_path, 'r') as file:
+    repeat = file.read()
+spec = blocks.MapSpec(from_="INPUT", repeat=repeat)
+block = blocks.Block(type=\"""" + block['type'] +  """",name=\"""" + block['name'] + """", indent=0, spec=spec, config={})
+"""
+            script_name = block['name'].lower() + ".py"
+            script_path = os.path.join(block_path, script_name)
+            with open(script_path, "w") as file:
+                file.write(script_content)
+        elif block['type'] == 'reduce':
+            reduce_content = """\
+from trycortex.callables import blocks
+
+block = blocks.Block(type="reduce", name=\"""" + block['name'] + """", indent=0, spec={}, config={})
+"""
+            reduce_name = "reduce.py"
+            reduce_path = os.path.join(block_path, reduce_name)
+            with open(reduce_path, "w") as file:
+                file.write(reduce_content)
+        elif block['type'] == 'search':
+            search_path = os.path.join(block_path, "search.txt")
+            with open(search_path, "w") as file:
+                file.write(block['spec']['query'])
+            script_content = """\
+from trycortex.callables import blocks
+import os
+path = os.path.dirname(os.path.abspath(__file__))
+search_path = os.path.join(path, "search.txt")
+with open(search_path, 'r') as file:
+    query = file.read()
+spec = blocks.SearchSpec(query=query, num=3)
+config = blocks.SearchConfig(provider_id="serpapi", use_cache=True)
+block = blocks.Block(type=\"""" + block['type'] +  """",name=\"""" + block['name'] + """", indent=0, spec=spec, config=config)
+"""
+            script_name = block['name'].lower() + ".py"
+            script_path = os.path.join(block_path, script_name)
+            with open(script_path, "w") as file:
+                file.write(script_content)
+        elif block['type'] == 'browser':
+            browser_path = os.path.join(block_path, "browser.txt")
+            with open(browser_path, "w") as file:
+                file.write(block['spec']['url'])
+            browser_content = """\
+from trycortex.callables import blocks
+import os
+path = os.path.dirname(os.path.abspath(__file__))
+browser_path = os.path.join(path, "browser.txt")
+with open(browser_path, 'r') as file:
+    url = file.read()
+spec = blocks.BrowserSpec(url=url, selector="body", timeout=16000, wait_until="networkidle2")
+config = blocks.BrowserConfig(provider_id="", use_cache=True, error_as_output=True)
+block = blocks.Block(type="browser", name=\"""" + block['name'] + """", indent=0, spec=spec, config=config)
+"""
+            script_name = block['name'].lower() + ".py"
+            script_path = os.path.join(block_path, script_name)
+            with open(script_path, "w") as file:
+                file.write(browser_content)
+        elif block['type'] == 'curl':
+            headers_path = os.path.join(block_path, "headers_code.js")
+            with open(headers_path, "w") as file:
+                file.write(block['spec']['headers_code'])
+            body_path = os.path.join(block_path, "body_code.js")
+            with open(body_path, "w") as file:
+                file.write(block['spec']['body_code'])
+            script_content = """from trycortex.callables import blocks
+import os
+path = os.path.dirname(os.path.abspath(__file__))
+headers_path = os.path.join(path, "headers_code.js")
+with open(headers_path, 'r') as file:
+    headers_js_code = file.read()
+body_path = os.path.join(path, "body_code.js")
+with open(body_path, 'r') as file:
+    body_js_code = file.read()
+spec = blocks.CurlSpec(scheme="HTTPS", method="POST", url="", headers_code=headers_js_code, body_code=body_js_code)
+config = blocks.CurlConfig(use_cache=True)
+block = blocks.Block(type="curl", name=\"""" + block['name'] + """", indent=0, spec=spec, config=config)
+"""
+            script_name = block['name'].lower() + ".py"
+            script_path = os.path.join(block_path, script_name)
+            with open(script_path, 'w') as file:
+                file.write(script_content)
+        elif block['type'] == 'input':
+            script_content = """\
+from trycortex.callables import blocks
+
+config = blocks.InputConfig(dataset=\"""" + block['config']['dataset'] + """")
+
+block = blocks.Block(type="input", name="INPUT", indent=0, spec={}, config=config)
+"""
+            script_name = block['name'].lower() + ".py"
+            script_path = os.path.join(block_path, script_name)
+            with open(script_path, 'w') as file:
+                file.write(script_content)
+    
+
+
+@callable.command("update", help="Deploy the current agent.")
+@click.argument("path", callback=_validate_callable_path, required=False)
+@click.pass_context
+def update(ctx, path):
+    console = rich_console.Console(soft_wrap=True)
+    path = pathlib.Path(path or ".")
+    config = callable_config.load_config(path)
+    callable_dir = os.path.dirname(path) or "."
+    sys.path.insert(0, callable_dir)
+    entry_point_parts = config.entry_point.split(":", 1)
+    module_name = entry_point_parts[0]
+    attr = entry_point_parts[1] if len(entry_point_parts) == 2 else "callable"
     module = importlib.import_module(module_name)
     impl = getattr(module, attr)
     if isinstance (impl, Callable):
@@ -268,3 +724,28 @@ def update(ctx, path):
     block_json = [asdict(block) for block in callable_blocks]
     with open('output.json', 'w') as file:
         json.dump(block_json, file)
+    #with open('output.json', 'r') as file:
+    #    saveSpec = file.read()
+    #saveSpec = str(block_json).replace("'",'"')
+    saveSpec = json.dumps(block_json)
+
+    print(saveSpec)
+    url = "http://127.0.0.1:3000/api/sdk/callable/update"
+
+    sId = config.sID
+
+    apikey = ctx.obj.api_key
+
+    payload = json.dumps({
+        "sId": sId,
+        "specification": saveSpec
+    })
+    #print(payload)
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + apikey
+    }
+    response = requests.request("POST", url, headers=headers, data=payload)
+    #print(response.text)
+
+

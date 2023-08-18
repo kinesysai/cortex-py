@@ -1,6 +1,7 @@
-import trycortex.callables.base as base
 import blocks.INPUT.input as input
 import blocks.OUTPUT.output as output
+import trycortex.callables.base as base
+
 """A templated cortex callable!
 
 Cortex docs:
