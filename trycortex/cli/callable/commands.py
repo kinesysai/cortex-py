@@ -290,7 +290,7 @@ def init_callable(ctx, path, name, description, visibility, template, entry_poin
     current_config.visibility = visibility
     current_config.template = template
 
-    url = "http://127.0.0.1:3000/api/sdk/callable/create"
+    url = "https://trycortex.ai/api/sdk/callable/create"
 
     apikey = ctx.obj.api_key
     if apikey is None:
@@ -383,7 +383,7 @@ def deploy(ctx, path):
     click.echo("Deploying callable...", nl=True)
     path = pathlib.Path(path or ".")
     config = callable_config.load_config(path)
-    url = "http://127.0.0.1:3000/api/sdk/callable/deploy"
+    url = "https://trycortex.ai/api/sdk/callable/deploy"
 
     sId = config.sID
 
@@ -425,7 +425,7 @@ def runtests(ctx, path):
     callable_blocks = callable_impl.get_blocks()
     block_json = [asdict(block) for block in callable_blocks]
     saveSpec = json.dumps(block_json)
-    url = "http://127.0.0.1:3000/api/sdk/callable/update"
+    url = "https://trycortex.ai/api/sdk/callable/update"
 
     sId = config.sID
 
@@ -442,7 +442,7 @@ def runtests(ctx, path):
     }
     update_response = requests.request("POST", url, headers=headers, data=update_payload)
 
-    runtests_url = "http://127.0.0.1:3000/api/sdk/callable/runtests"
+    runtests_url = "https://trycortex.ai/api/sdk/callable/runtests"
 
     runtests_payload = json.dumps({
     "sId": sId,
@@ -451,7 +451,7 @@ def runtests(ctx, path):
 
     runtests_response = requests.request("POST", runtests_url, headers=headers, data=runtests_payload)
     runId = runtests_response.json()["run"]["run_id"]
-    block_url = "http://127.0.0.1:3000/api/sdk/callable/runblock"
+    block_url = "https://trycortex.ai/api/sdk/callable/runblock"
 
 
     for block in block_json:
@@ -498,7 +498,7 @@ def runtests(ctx, path):
 def fetch(ctx, path):
     path = pathlib.Path(path or ".")
     config = callable_config.load_config(path)
-    url = "http://127.0.0.1:3000/api/sdk/callable/spec"
+    url = "https://trycortex.ai/api/sdk/callable/spec"
     sId = config.sID
     apikey = ctx.obj.api_key
     payload = json.dumps({
@@ -730,7 +730,7 @@ def update(ctx, path):
     saveSpec = json.dumps(block_json)
 
     print(saveSpec)
-    url = "http://127.0.0.1:3000/api/sdk/callable/update"
+    url = "https://trycortex.ai/api/sdk/callable/update"
 
     sId = config.sID
 
